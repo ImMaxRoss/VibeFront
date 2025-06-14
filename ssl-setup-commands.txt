@@ -1,0 +1,40 @@
+# SSL Setup Commands for Spring Boot + Let's Encrypt
+# Execute these commands one by one in your PuTTY SSH session
+
+# STEP 1: Install Certbot and Get SSL Certificate
+sudo yum update -y
+sudo yum install -y certbot
+sudo pkill -f "java.*jar"
+sudo certbot certonly --standalone -d YOUR-DOMAIN.com
+
+# STEP 2: Convert Certificate to Java Keystore Format
+sudo openssl pkcs12 -export -in /etc/letsencrypt/live/YOUR-DOMAIN.com/fullchain.pem -inkey /etc/letsencrypt/live/YOUR-DOMAIN.com/privkey.pem -out /home/ec2-user/keystore.p12 -name tomcat -CAfile /etc/letsencrypt/live/YOUR-DOMAIN.com/chain.pem -caname root
+sudo chown ec2-user:ec2-user /home/ec2-user/keystore.p12
+
+# STEP 3: Configure Spring Boot Application Properties
+# Add these lines to your backend/src/main/resources/application.properties:
+# server.port=443
+# server.ssl.key-store=/home/ec2-user/keystore.p12
+# server.ssl.key-store-password=YOUR-CHOSEN-PASSWORD
+# server.ssl.keyStoreType=PKCS12
+# server.ssl.keyAlias=tomcat
+
+# STEP 4: Update Security Group (AWS Console)
+# Add inbound rule: HTTPS (port 443) from anywhere (0.0.0.0/0)
+
+# STEP 5: Restart Application
+sudo java -jar /home/ec2-user/app/improvcoach-backend.jar
+
+# STEP 6: Test HTTPS Connection
+curl -k https://YOUR-DOMAIN.com:443/api/health
+
+# STEP 7: Update Frontend Environment Variable
+# Change REACT_APP_API_URL to: https://YOUR-DOMAIN.com/api
+# Then redeploy to Amplify
+
+# IMPORTANT NOTES:
+# - Replace YOUR-DOMAIN.com with your actual domain name
+# - Replace YOUR-CHOSEN-PASSWORD with a secure password
+# - The certbot command will ask for email and agreement to terms
+# - When creating the keystore, you'll be prompted to enter an export password
+# - Make sure your domain points to your EC2 instance's public IP
